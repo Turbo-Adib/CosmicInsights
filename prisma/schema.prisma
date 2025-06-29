@@ -1,0 +1,256 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// User and Authentication
+model User {
+  id                 String              @id @default(cuid())
+  email              String              @unique
+  name               String?
+  emailVerified      DateTime?
+  image              String?
+  accounts           Account[]
+  sessions           Session[]
+  profile            UserProfile?
+  reports            Report[]
+  dailyInsights      DailyInsight[]
+  subscriptions      Subscription[]
+  purchases          Purchase[]
+  compatibilities    Compatibility[]    @relation("CompatibilityUser1")
+  compatibilitiesWith Compatibility[]   @relation("CompatibilityUser2")
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+// User Profile and Birth Data
+model UserProfile {
+  id                String    @id @default(cuid())
+  userId            String    @unique
+  user              User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  // Birth Data
+  birthDate         DateTime
+  birthTime         String?   // HH:MM format
+  birthPlace        String
+  birthLatitude     Float
+  birthLongitude    Float
+  timezone          String
+  
+  // Personal Data
+  fullName          String      // Full legal name at birth
+  firstName         String
+  middleName        String?
+  lastName          String
+  currentName       String?     // Current name if different from birth name
+  gender            Gender?
+  phoneNumber       String?     // For additional numerology calculations
+  
+  // Calculated Values (cached)
+  sunSign           String?
+  moonSign          String?
+  risingSign        String?
+  
+  // Core Numerology Numbers
+  lifePathNumber    Int?
+  expressionNumber  Int?      // Also called Destiny Number
+  soulUrgeNumber    Int?      // Heart's Desire Number
+  personalityNumber Int?      // Outer Expression
+  birthDayNumber    Int?
+  
+  // Additional Numerology Numbers
+  maturityNumber    Int?      // Life Path + Expression
+  currentNameNumber Int?      // If using different name
+  phoneNumberValue  Int?      // Phone number numerology
+  
+  // Personal Year Cycles
+  personalYear      Int?      // Current personal year
+  personalMonth     Int?      // Current personal month
+  personalDay       Int?      // Current personal day
+  
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+}
+
+// Reports and Insights
+model Report {
+  id          String       @id @default(cuid())
+  userId      String
+  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type        ReportType
+  title       String
+  content     Json         // Structured report data
+  summary     String?
+  isPremium   Boolean      @default(false)
+  viewCount   Int          @default(0)
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+}
+
+model DailyInsight {
+  id          String       @id @default(cuid())
+  userId      String
+  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  date        DateTime
+  content     Json         // Daily predictions and guidance
+  moonPhase   String?
+  planetaryTransits Json?
+  personalDay Int?
+  universalDay Int?
+  createdAt   DateTime     @default(now())
+  
+  @@unique([userId, date])
+}
+
+// Compatibility
+model Compatibility {
+  id          String       @id @default(cuid())
+  user1Id     String
+  user2Id     String
+  user1       User         @relation("CompatibilityUser1", fields: [user1Id], references: [id])
+  user2       User         @relation("CompatibilityUser2", fields: [user2Id], references: [id])
+  
+  overallScore      Float    // 0-100
+  sunSignScore      Float?
+  moonSignScore     Float?
+  risingSignScore   Float?
+  numerologyScore   Float?
+  
+  analysis          Json     // Detailed compatibility analysis
+  strengths         String[]
+  challenges        String[]
+  advice            String[]
+  
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  
+  @@unique([user1Id, user2Id])
+}
+
+// Subscription and Payments
+model Subscription {
+  id                String             @id @default(cuid())
+  userId            String
+  user              User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  stripeCustomerId  String?            @unique
+  stripeSubscriptionId String?         @unique
+  stripePriceId     String?
+  
+  status            SubscriptionStatus
+  plan              SubscriptionPlan
+  currentPeriodStart DateTime?
+  currentPeriodEnd   DateTime?
+  cancelAtPeriodEnd Boolean           @default(false)
+  
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+}
+
+// One-time Purchases
+model Purchase {
+  id                String            @id @default(cuid())
+  userId            String
+  user              User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  productType       PurchaseType
+  productId         String?           // Reference to specific report/product
+  amount            Float
+  currency          String            @default("USD")
+  
+  stripePaymentIntentId String?       @unique
+  status            PurchaseStatus
+  
+  metadata          Json?             // Additional purchase details
+  
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+}
+
+// Enums
+enum Gender {
+  MALE
+  FEMALE
+  OTHER
+  PREFER_NOT_TO_SAY
+}
+
+enum ReportType {
+  BIRTH_CHART
+  NUMEROLOGY_PROFILE
+  MONTHLY_FORECAST
+  YEARLY_FORECAST
+  COMPATIBILITY
+  CAREER_GUIDANCE
+  RELATIONSHIP_GUIDANCE
+  HEALTH_WELLNESS
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  CANCELED
+  PAST_DUE
+  UNPAID
+  TRIALING
+}
+
+enum SubscriptionPlan {
+  FREE
+  PREMIUM        // $9.99/month
+  PROFESSIONAL   // $29.99/month
+  ENTERPRISE     // $99/month
+}
+
+enum PurchaseType {
+  DETAILED_REPORT
+  COMPATIBILITY_REPORT
+  ANNUAL_FORECAST
+  CAREER_GUIDANCE
+  RELATIONSHIP_GUIDANCE
+}
+
+enum PurchaseStatus {
+  PENDING
+  COMPLETED
+  FAILED
+  REFUNDED
+}
