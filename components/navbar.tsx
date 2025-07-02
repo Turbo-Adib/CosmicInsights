@@ -10,6 +10,7 @@ export function Navbar() {
 
   const navItems = [
     { href: "/", label: "Home" },
+    { href: "/pricing", label: "Pricing" },
     { href: "/methodology", label: "Methodology" },
     { href: "/about", label: "About" },
     { href: "/contact", label: "Contact" },
