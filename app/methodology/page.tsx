@@ -185,10 +185,6 @@ export default function MethodologyPage() {
               <p className="text-sm text-muted-foreground">These carry special spiritual significance and power</p>
             </Card>
             <Card className="p-4">
-              <p className="font-semibold">Zero is the hidden 9</p>
-              <p className="text-sm text-muted-foreground">It conceals and amplifies the true nature of adjacent numbers</p>
-            </Card>
-            <Card className="p-4">
               <p className="font-semibold">First impressions create permanent energy</p>
               <p className="text-sm text-muted-foreground">Founding dates, first meetings, and beginnings are crucial</p>
             </Card>

@@ -142,7 +142,7 @@ export default function Home() {
           
           <div className="mt-8 flex items-center justify-center gap-6 text-sm text-muted-foreground">
             <span>✓ 100% Free</span>
-            <span>✓ No Email Required</span>
+            <span>✓ 2-Minute Quiz</span>
             <span>✓ Instant Results</span>
           </div>
 
