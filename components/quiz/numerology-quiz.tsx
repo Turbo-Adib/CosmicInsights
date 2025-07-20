@@ -319,7 +319,7 @@ export function NumerologyQuiz() {
   const calculateResults = async () => {
     const fullName = `${quizData.firstName} ${quizData.middleName} ${quizData.lastName}`.trim();
     const lifePath = calculateLifePath(quizData.birthDate);
-    const dayNumber = calculateDayNumber(quizData.birthDate);
+    const birthDayNumber = new Date(quizData.birthDate).getDate(); // Actual day of month (1-31)
     const expressionNumber = calculateExpressionNumber(fullName);
     
     const lifePathDescriptions: Record<number, string> = {
@@ -344,11 +344,11 @@ export function NumerologyQuiz() {
     const calculatedResult = {
       name: fullName,
       lifePath,
-      dayNumber,
+      birthDayNumber,
       expressionNumber,
       description: lifePathDescriptions[lifePath] || "A unique path of self-discovery",
       insights: personalizedInsights,
-      recommendations: generateRecommendations(lifePath, dayNumber, quizData),
+      recommendations: generateRecommendations(lifePath, birthDayNumber, quizData),
     };
 
     setResult(calculatedResult);
@@ -361,7 +361,7 @@ export function NumerologyQuiz() {
     setShowEmailCapture(true);
   };
 
-  const saveQuizData = async (lifePath: number, dayNumber: number, expressionNumber: number, userEmail?: string) => {
+  const saveQuizData = async (lifePath: number, birthDayNumber: number, expressionNumber: number, userEmail?: string) => {
     try {
       const response = await fetch("/api/quiz/save", {
         method: "POST",
@@ -371,7 +371,7 @@ export function NumerologyQuiz() {
         body: JSON.stringify({
           ...quizData,
           lifePathNumber: lifePath,
-          birthDayNumber: dayNumber,
+          birthDayNumber,
           expressionNumber,
           email: userEmail,
         }),
@@ -435,12 +435,12 @@ export function NumerologyQuiz() {
     }
 
     console.log("Submitting email:", email);
-    await saveQuizData(result.lifePath, result.dayNumber, result.expressionNumber, email);
+    await saveQuizData(result.lifePath, result.birthDayNumber, result.expressionNumber, email);
   };
 
   const skipEmailCapture = async () => {
     console.log("Skipping email capture");
-    await saveQuizData(result.lifePath, result.dayNumber, result.expressionNumber);
+    await saveQuizData(result.lifePath, result.birthDayNumber, result.expressionNumber);
   };
 
   const generatePersonalizedInsights = (lifePath: number, data: QuizData) => {
@@ -475,15 +475,15 @@ export function NumerologyQuiz() {
     return insights;
   };
 
-  const generateRecommendations = (lifePath: number, dayNumber: number, data: QuizData) => {
+  const generateRecommendations = (lifePath: number, birthDayNumber: number, data: QuizData) => {
     const recommendations = [];
     
-    if ([7, 9].includes(dayNumber)) {
-      recommendations.push("Your day number suggests being selective in relationships - quality over quantity.");
+    if ([7, 9].includes(birthDayNumber)) {
+      recommendations.push("Your birth day number suggests being selective in relationships - quality over quantity.");
     }
     
-    if (dayNumber === 6) {
-      recommendations.push("Your day number 6 enhances your natural magnetism - use it wisely in relationships.");
+    if (birthDayNumber === 6) {
+      recommendations.push("Your birth day number 6 enhances your natural magnetism - use it wisely in relationships.");
     }
     
     if ([11, 22, 33].includes(lifePath)) {

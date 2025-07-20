@@ -5,16 +5,33 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Loader2, Lock, Check, AlertCircle } from "lucide-react";
 import { useRouter } from "next/navigation";
 
 interface CheckoutFormProps {
-  plan: 'basic' | 'premium';
+  plan: 'basic' | 'premium' | 'report';
   reportId?: string;
   userEmail: string;
 }
 
 const PLANS = {
+  report: {
+    name: 'Complete Report',
+    price: 9,
+    originalPrice: 49,
+    features: [
+      'Complete Life Path analysis',
+      'All core numerology numbers',
+      'Full compatibility analysis',
+      '12-month personal forecast',
+      'Career & wealth guidance',
+      'Relationship insights',
+      'Personalized action plan',
+      'Instant digital access',
+    ],
+  },
   basic: {
     name: 'Basic Report',
     price: 19,
@@ -44,16 +61,26 @@ const PLANS = {
   },
 };
 
-export default function CheckoutForm({ plan, reportId, userEmail }: CheckoutFormProps) {
+export default function CheckoutForm({ plan, reportId, userEmail: initialEmail }: CheckoutFormProps) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [email, setEmail] = useState(initialEmail || '');
+  const [emailError, setEmailError] = useState<string | null>(null);
   
   const selectedPlan = PLANS[plan];
 
   const handleCheckout = async () => {
     setLoading(true);
     setError(null);
+    setEmailError(null);
+
+    // Validate email
+    if (!email || !email.match(/^[^\s@]+@[^\s@]+\.[^\s@]+$/)) {
+      setEmailError('Please enter a valid email address');
+      setLoading(false);
+      return;
+    }
 
     try {
       const response = await fetch('/api/stripe/checkout', {
@@ -64,6 +91,7 @@ export default function CheckoutForm({ plan, reportId, userEmail }: CheckoutForm
         body: JSON.stringify({
           plan,
           reportId,
+          email,
           successUrl: reportId ? `/reports/${reportId}?success=true` : '/dashboard?success=true',
           cancelUrl: reportId ? `/reports/${reportId}?canceled=true` : '/dashboard?canceled=true',
         }),
@@ -146,12 +174,24 @@ export default function CheckoutForm({ plan, reportId, userEmail }: CheckoutForm
           <CardDescription>Complete your purchase securely</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="bg-gray-50 dark:bg-gray-900 p-4 rounded-lg">
-            <p className="text-sm">
-              <strong>Email:</strong> {userEmail}
-            </p>
-            <p className="text-xs text-muted-foreground mt-1">
-              Your report will be sent to this email
+          <div className="space-y-2">
+            <Label htmlFor="email">Email address</Label>
+            <Input
+              id="email"
+              type="email"
+              placeholder="your@email.com"
+              value={email}
+              onChange={(e) => {
+                setEmail(e.target.value);
+                setEmailError(null);
+              }}
+              className={emailError ? "border-red-500" : ""}
+            />
+            {emailError && (
+              <p className="text-sm text-red-500">{emailError}</p>
+            )}
+            <p className="text-xs text-muted-foreground">
+              Your report and receipt will be sent to this email
             </p>
           </div>
 

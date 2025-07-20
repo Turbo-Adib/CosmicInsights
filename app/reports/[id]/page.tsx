@@ -1,7 +1,5 @@
 import { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { ReportClient } from "./report-client";
 import { Suspense } from "react";
 
@@ -21,34 +19,10 @@ export const metadata: Metadata = {
   description: "View your personalized numerology and astrology report",
 };
 
-async function getReport(reportId: string, userId?: string) {
-  try {
-    const response = await fetch(
-      `${process.env.NEXTAUTH_URL}/api/reports/${reportId}`,
-      {
-        headers: userId ? {
-          'Cookie': `next-auth.session-token=${userId}` // This is simplified, actual implementation would use proper session handling
-        } : {},
-        cache: 'no-store',
-      }
-    );
-
-    if (!response.ok) {
-      return null;
-    }
-
-    return response.json();
-  } catch (error) {
-    console.error('Error fetching report:', error);
-    return null;
-  }
-}
+// Removed server-side report fetching - handled by client component
 
 export default async function ReportPage({ params, searchParams }: ReportPageProps) {
-  const session = await getServerSession(authOptions);
-  
-  // For better UX, we'll let the client component handle data fetching
-  // This allows for proper loading states and client-side features
+  // No authentication needed - reports are accessible via direct link
   
   return (
     <div className="container max-w-7xl mx-auto py-8 px-4">
@@ -62,7 +36,6 @@ export default async function ReportPage({ params, searchParams }: ReportPagePro
       }>
         <ReportClient 
           reportId={params.id}
-          isAuthenticated={!!session?.user}
         />
       </Suspense>
     </div>

@@ -483,6 +483,20 @@ export function getPersonalYearMeaning(year: number): PersonalYearInfo | null {
   return KNOWLEDGE_BASE.personalYears[year] || null;
 }
 
+// Get expression number meaning
+export function getExpressionMeaning(expressionNumber: number) {
+  // Import from interpretations file
+  const { expressionNumberMeanings } = require('./numerology/interpretations');
+  return expressionNumberMeanings[expressionNumber] || null;
+}
+
+// Get birth day meaning
+export function getBirthDayMeaning(birthDay: number) {
+  // Import from interpretations file
+  const { birthDayNumberMeanings } = require('./numerology/interpretations');
+  return birthDayNumberMeanings[birthDay] || null;
+}
+
 export function calculateRelationshipCompatibility(
   person1Numbers: any,
   person2Numbers: any

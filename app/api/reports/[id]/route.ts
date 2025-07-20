@@ -1,6 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth';
-import { authOptions } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 
 interface RouteParams {
@@ -11,7 +9,6 @@ interface RouteParams {
 
 export async function GET(request: NextRequest, { params }: RouteParams) {
   try {
-    const session = await getServerSession(authOptions);
     const reportId = params.id;
 
     // Fetch the report
@@ -41,49 +38,16 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       );
     }
 
-    // Check access permissions
-    const isOwner = session?.user?.id === report.userId;
-    const isAnonymousReport = !report.userId;
-    
-    // For quiz reports, allow access if:
-    // 1. User is the owner (authenticated)
-    // 2. It's an anonymous report (no userId)
+    // Reports are accessible via direct link
+    // No authentication required for one-time purchase model
     // 3. It's a recent quiz report (created within last 24 hours)
     // 4. User has the direct link (implicit permission)
     
-    // Calculate if report was created recently (within 24 hours)
-    const reportAge = Date.now() - new Date(report.createdAt).getTime();
-    const isRecentReport = reportAge < 24 * 60 * 60 * 1000; // 24 hours in milliseconds
-    
-    // For now, allow access to all reports with direct links
-    // In production, you might want stricter controls
-    const hasDirectLink = true; // The fact they have the ID means they have the link
-    
-    if (!isOwner && !isAnonymousReport && !isRecentReport && !hasDirectLink) {
-      return NextResponse.json(
-        { error: 'Unauthorized access' },
-        { status: 403 }
-      );
-    }
-
-    // Admin override - check if user is admin
-    const ADMIN_EMAILS = process.env.ADMIN_EMAILS?.split(',') || [];
-    const isAdmin = session?.user?.email && ADMIN_EMAILS.includes(session.user.email);
-    
-    // Determine content access level
+    // Determine content access level based on payment status
     let accessLevel = 'teaser'; // Default to teaser
     
-    // Admin override - admins get premium access
-    if (isAdmin) {
+    if (report.isPaid) {
       accessLevel = 'premium';
-    } else if (report.isPaid) {
-      accessLevel = 'premium';
-    } else if (session?.user?.id && report.user?.subscriptions?.some((sub: any) => 
-      sub.status === 'ACTIVE' && ['BASIC', 'PREMIUM'].includes(sub.plan)
-    )) {
-      accessLevel = report.user.subscriptions[0].plan.toLowerCase();
-    } else if (session?.user?.id === report.userId) {
-      accessLevel = 'free';
     }
 
     // Filter content based on access level
@@ -109,22 +73,12 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
         accessLevel,
         isPaid: report.isPaid,
       },
-      user: isOwner ? {
-        id: report.user?.id,
-        email: report.user?.email,
-        name: report.user?.name,
-        subscription: report.user?.subscriptions?.[0],
-      } : null,
+      user: null, // No user data in anonymous model
       upgrade: {
         available: accessLevel !== 'premium',
         currentLevel: accessLevel,
         benefits: getUpgradeBenefits(accessLevel),
       },
-      admin: isAdmin ? {
-        isAdmin: true,
-        message: 'Admin access - viewing premium content',
-        actualAccessLevel: report.isPaid ? 'premium' : (isOwner ? 'free' : 'teaser'),
-      } : undefined,
     });
 
   } catch (error) {

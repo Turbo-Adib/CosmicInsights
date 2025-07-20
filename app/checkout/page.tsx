@@ -1,6 +1,4 @@
 import { Metadata } from "next";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import CheckoutForm from "@/components/checkout/checkout-form";
 
@@ -17,14 +15,13 @@ interface CheckoutPageProps {
 }
 
 export default async function CheckoutPage({ searchParams }: CheckoutPageProps) {
-  const session = await getServerSession(authOptions);
-
-  if (!session?.user) {
-    redirect(`/auth/signin?callbackUrl=/checkout?plan=${searchParams.plan}&report=${searchParams.report}`);
-  }
-
-  const plan = searchParams.plan || 'basic';
+  const plan = searchParams.plan || 'report';
   const reportId = searchParams.report;
+
+  // Require a report ID for checkout
+  if (!reportId) {
+    redirect('/');
+  }
 
   return (
     <div className="container max-w-4xl mx-auto py-8 px-4">
@@ -36,9 +33,9 @@ export default async function CheckoutPage({ searchParams }: CheckoutPageProps) 
       </div>
 
       <CheckoutForm 
-        plan={plan as 'basic' | 'premium'} 
+        plan={plan as 'basic' | 'premium' | 'report'} 
         reportId={reportId}
-        userEmail={session.user.email || ''}
+        userEmail="" // Will be collected in the form
       />
     </div>
   );

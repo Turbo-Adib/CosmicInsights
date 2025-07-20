@@ -17,20 +17,23 @@ import { getLifePathMeaning, getPersonalYearMeaning, calculateRelationshipCompat
 import { getNumerologyProfile } from "@/lib/numerology/calculations";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
+import { EnhancedFreeReport } from "@/components/reports/enhanced-free-report";
 
 interface ComprehensiveReportProps {
   reportId: string;
   reportData: any;
   accessLevel: 'teaser' | 'free' | 'basic' | 'premium';
-  isAuthenticated: boolean;
 }
 
 export function ComprehensiveReport({ 
   reportId, 
   reportData, 
-  accessLevel,
-  isAuthenticated 
+  accessLevel
 }: ComprehensiveReportProps) {
+  // Use enhanced report for teaser/free levels
+  if (accessLevel === 'teaser' || accessLevel === 'free') {
+    return <EnhancedFreeReport reportId={reportId} reportData={reportData} />;
+  }
   const router = useRouter();
   const [showUpsell, setShowUpsell] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState<'basic' | 'premium'>('premium');
@@ -1146,14 +1149,11 @@ export function ComprehensiveReport({
                     className="w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700"
                     size="lg"
                     onClick={() => {
-                      if (!isAuthenticated) {
-                        router.push(`/auth/signin?callbackUrl=/checkout?plan=report&report=${reportId}&price=9`);
-                      } else {
-                        router.push(`/checkout?plan=report&report=${reportId}&price=9`);
-                      }
+                      // Direct to checkout without authentication
+                      router.push(`/checkout?plan=report&report=${reportId}&price=9`);
                     }}
                   >
-                    {isAuthenticated ? 'Get Instant Access for $9' : 'Create Account & Unlock Report'}
+                    Get Instant Access for $9
                   </Button>
                   
                   <Button 
@@ -1186,8 +1186,6 @@ export function ComprehensiveReport({
   return (
     <>
       <div className="max-w-4xl mx-auto space-y-6">
-        {accessLevel === 'teaser' && renderTeaserContent()}
-        {accessLevel === 'free' && renderFreeContent()}
         {(accessLevel === 'basic' || accessLevel === 'premium') && renderPremiumContent()}
       </div>
       

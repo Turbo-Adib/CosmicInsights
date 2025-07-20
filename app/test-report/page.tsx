@@ -123,7 +123,6 @@ export default function TestReportPage() {
         reportId="test-123"
         reportData={mockReportData}
         accessLevel="teaser"
-        isAuthenticated={false}
       />
     </div>
   );

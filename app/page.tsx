@@ -149,6 +149,13 @@ export default function Home() {
           <p className="mt-4 text-sm text-muted-foreground">
             Questions? Check our <Link href="/methodology" className="text-purple-600 hover:underline">methodology</Link> or <Link href="/auth/signin" className="text-purple-600 hover:underline">sign in</Link>
           </p>
+          
+          {/* Admin Access - Hidden Link */}
+          <div className="mt-8">
+            <Link href="/admin" className="text-xs text-muted-foreground/50 hover:text-muted-foreground transition-colors">
+              Admin Access
+            </Link>
+          </div>
         </div>
       </section>
     </main>

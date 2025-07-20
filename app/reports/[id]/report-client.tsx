@@ -9,14 +9,17 @@ import { useSearchParams } from "next/navigation";
 interface ReportClientProps {
   reportId: string;
   initialData?: any;
-  isAuthenticated: boolean;
 }
 
-export function ReportClient({ reportId, initialData, isAuthenticated }: ReportClientProps) {
+export function ReportClient({ reportId, initialData }: ReportClientProps) {
   const [reportData, setReportData] = useState(initialData);
   const [loading, setLoading] = useState(!initialData);
   const [error, setError] = useState<string | null>(null);
   const searchParams = useSearchParams();
+  
+  // Check for admin access code
+  const accessCode = searchParams.get('access');
+  const hasAdminAccess = accessCode === 'cosmic2024';
 
   useEffect(() => {
     if (!initialData) {
@@ -84,11 +87,11 @@ export function ReportClient({ reportId, initialData, isAuthenticated }: ReportC
       )}
 
       {/* Admin Notice */}
-      {admin?.isAdmin && (
+      {(admin?.isAdmin || hasAdminAccess) && (
         <Alert className="mb-6 border-purple-200 bg-purple-50 dark:bg-purple-950/20">
           <Shield className="h-4 w-4 text-purple-600" />
           <AlertDescription className="text-purple-800 dark:text-purple-200">
-            <strong>Admin Mode:</strong> {admin.message}. Normal access level would be: {admin.actualAccessLevel}
+            <strong>Admin Mode:</strong> {hasAdminAccess ? 'Full access granted via access code' : admin.message}. Normal access level would be: {admin?.actualAccessLevel || report.accessLevel}
           </AlertDescription>
         </Alert>
       )}
@@ -109,8 +112,7 @@ export function ReportClient({ reportId, initialData, isAuthenticated }: ReportC
       <ComprehensiveReport
         reportId={reportId}
         reportData={report}
-        accessLevel={report.accessLevel}
-        isAuthenticated={isAuthenticated}
+        accessLevel={hasAdminAccess ? 'premium' : report.accessLevel}
       />
     </>
   );
