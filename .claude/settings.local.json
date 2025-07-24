@@ -1,0 +1,36 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(find:*)",
+      "Bash(ls:*)",
+      "Bash(npx create-next-app:*)",
+      "Bash(rm:*)",
+      "WebFetch(domain:7catyear.com)",
+      "Bash(mkdir:*)",
+      "Bash(npm install)",
+      "WebFetch(domain:gg33classes.com)",
+      "Bash(npm install:*)",
+      "Bash(npm run typecheck:*)",
+      "Bash(npx shadcn-ui@latest add:*)",
+      "WebFetch(domain:meaningfulmoon.com)",
+      "Bash(npx shadcn@latest add:*)",
+      "WebFetch(domain:ascendment.co)",
+      "Bash(npm run dev:*)",
+      "Bash(npm run lint)",
+      "Bash(grep:*)",
+      "Bash(awk:*)",
+      "Bash(sed:*)",
+      "Bash(git add:*)",
+      "Bash(npm run:*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)",
+      "Bash(npx prisma:*)",
+      "Bash(docker-compose up:*)",
+      "Bash(pg_isready:*)",
+      "Bash(docker compose:*)",
+      "Bash(node:*)",
+      "Bash(docker start:*)"
+    ],
+    "deny": []
+  }
+}
