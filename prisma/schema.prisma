@@ -10,10 +10,12 @@ datasource db {
 // User and Authentication
 model User {
   id                 String              @id @default(cuid())
-  email              String              @unique
+  email              String?             @unique
   name               String?
   emailVerified      DateTime?
   image              String?
+  stripeCustomerId   String?             @unique
+  role               String              @default("USER") // USER | ADMIN
   accounts           Account[]
   sessions           Session[]
   profile            UserProfile?
@@ -114,14 +116,18 @@ model UserProfile {
 // Reports and Insights
 model Report {
   id          String       @id @default(cuid())
-  userId      String
-  user        User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId      String?      // Nullable for anonymous reports
+  user        User?        @relation(fields: [userId], references: [id], onDelete: Cascade)
   type        ReportType
   title       String
   content     Json         // Structured report data
   summary     String?
   isPremium   Boolean      @default(false)
+  isPaid      Boolean      @default(false)
+  purchasedAt DateTime?
+  accessLevel String?      // 'teaser', 'free', 'basic', 'premium'
   viewCount   Int          @default(0)
+  lastViewedAt DateTime?
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt
 }
@@ -189,8 +195,9 @@ model Subscription {
 // One-time Purchases
 model Purchase {
   id                String            @id @default(cuid())
-  userId            String
-  user              User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId            String?           // Made optional for anonymous purchases
+  user              User?             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  email             String?           // Store email for anonymous purchases
   
   productType       PurchaseType
   productId         String?           // Reference to specific report/product

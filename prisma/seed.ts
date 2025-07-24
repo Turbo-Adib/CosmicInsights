@@ -21,6 +21,10 @@ async function main() {
           birthLongitude: -74.0060,
           timezone: 'America/New_York',
           fullName: 'Test User',
+          firstName: 'Test',
+          lastName: 'User',
+          middleName: null,
+          currentName: null,
           gender: 'PREFER_NOT_TO_SAY',
           // Calculated values (example)
           sunSign: 'Capricorn',

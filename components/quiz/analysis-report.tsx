@@ -11,7 +11,7 @@ import {
 } from "lucide-react";
 import { 
   lifePathMeanings, 
-  dayNumberMeanings, 
+  birthDayNumberMeanings, 
   personalYearMeanings,
   compatibilityChart 
 } from "@/lib/numerology/interpretations";
@@ -37,7 +37,7 @@ export function AnalysisReport({
   // Get full numerology profile
   const profile = getNumerologyProfile(birthDate, name);
   const lifePathInfo = lifePathMeanings[lifePath] || lifePathMeanings[1];
-  const dayInfo = dayNumberMeanings[dayNumber] || dayNumberMeanings[1];
+  const dayInfo = birthDayNumberMeanings[dayNumber] || birthDayNumberMeanings[1];
   const yearInfo = personalYearMeanings[profile.personalYear] || personalYearMeanings[1];
   const compatibility = compatibilityChart[lifePath] || compatibilityChart[1];
 
@@ -287,9 +287,9 @@ export function AnalysisReport({
               {/* Day Number Karma */}
               <div className="bg-blue-50 dark:bg-blue-950/20 p-4 rounded-lg">
                 <h4 className="font-semibold mb-2">Day Number {dayNumber} Influence</h4>
-                <p className="text-sm text-muted-foreground mb-2">{dayInfo.karma}</p>
+                <p className="text-sm text-muted-foreground mb-2">{dayInfo.overview}</p>
                 <div className="flex flex-wrap gap-2">
-                  {dayInfo.talents.map((talent, i) => (
+                  {dayInfo.talents.map((talent: string, i: number) => (
                     <Badge key={i} variant="outline">{talent}</Badge>
                   ))}
                 </div>

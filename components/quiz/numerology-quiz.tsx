@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -8,9 +8,8 @@ import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
 import { LocationSearch } from "@/components/ui/location-search";
 import { TimezoneSelect } from "@/components/ui/timezone-select";
-import { ArrowLeft, ArrowRight, Calendar, User, Sparkles, Check } from "lucide-react";
+import { ArrowLeft, ArrowRight, Calendar, User, Sparkles, Check, Mail } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
-import { AnalysisReport } from "./analysis-report";
 
 interface QuizData {
   // Basic Info
@@ -236,6 +235,25 @@ export function NumerologyQuiz() {
     primaryGoal: "",
   });
   const [result, setResult] = useState<any>(null);
+  const [showEmailCapture, setShowEmailCapture] = useState(false);
+  const [email, setEmail] = useState("");
+  const [emailError, setEmailError] = useState("");
+  const [isLoading, setIsLoading] = useState(true);
+
+  // Load saved quiz data on mount
+  useEffect(() => {
+    const savedQuizData = sessionStorage.getItem('quizData');
+    const savedResult = sessionStorage.getItem('quizResult');
+    
+    if (savedQuizData && savedResult) {
+      // Quiz was completed before, restore the state
+      setQuizData(JSON.parse(savedQuizData));
+      setResult(JSON.parse(savedResult));
+      setCurrentStep(questions.length); // Set to end of quiz
+    }
+    
+    setIsLoading(false);
+  }, []);
 
   const progress = ((currentStep + 1) / questions.length) * 100;
   const currentQuestion = questions[currentStep];
@@ -301,7 +319,7 @@ export function NumerologyQuiz() {
   const calculateResults = async () => {
     const fullName = `${quizData.firstName} ${quizData.middleName} ${quizData.lastName}`.trim();
     const lifePath = calculateLifePath(quizData.birthDate);
-    const dayNumber = calculateDayNumber(quizData.birthDate);
+    const birthDayNumber = new Date(quizData.birthDate).getDate(); // Actual day of month (1-31)
     const expressionNumber = calculateExpressionNumber(fullName);
     
     const lifePathDescriptions: Record<number, string> = {
@@ -322,19 +340,30 @@ export function NumerologyQuiz() {
     // Generate personalized insights based on quiz answers
     const personalizedInsights = generatePersonalizedInsights(lifePath, quizData);
 
-    setResult({
+    // Store result but don't show it yet
+    const calculatedResult = {
       name: fullName,
       lifePath,
-      dayNumber,
+      birthDayNumber,
       expressionNumber,
       description: lifePathDescriptions[lifePath] || "A unique path of self-discovery",
       insights: personalizedInsights,
-      recommendations: generateRecommendations(lifePath, dayNumber, quizData),
-    });
+      recommendations: generateRecommendations(lifePath, birthDayNumber, quizData),
+    };
 
-    // Save quiz data
+    setResult(calculatedResult);
+
+    // Save quiz data to sessionStorage to persist it
+    sessionStorage.setItem('quizData', JSON.stringify(quizData));
+    sessionStorage.setItem('quizResult', JSON.stringify(calculatedResult));
+
+    // Always show email capture for one-time purchase flow
+    setShowEmailCapture(true);
+  };
+
+  const saveQuizData = async (lifePath: number, birthDayNumber: number, expressionNumber: number, userEmail?: string) => {
     try {
-      await fetch("/api/quiz/save", {
+      const response = await fetch("/api/quiz/save", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -342,15 +371,76 @@ export function NumerologyQuiz() {
         body: JSON.stringify({
           ...quizData,
           lifePathNumber: lifePath,
-          birthDayNumber: dayNumber,
+          birthDayNumber,
           expressionNumber,
+          email: userEmail,
         }),
       });
 
-      sessionStorage.setItem("quizCompleted", "true");
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      console.log("Save quiz response:", data); // Debug log
+      
+      if (data.success && data.reportId) {
+        // Clear any session storage before redirect
+        sessionStorage.removeItem('quizData');
+        sessionStorage.removeItem('quizResult');
+        // Redirect to the report page - handle both local and GitHub Codespaces environments
+        const redirectUrl = `/reports/${data.reportId}?new=true`;
+        console.log("Redirecting to:", redirectUrl);
+        
+        // Get the base URL to handle GitHub Codespaces or other environments
+        const baseUrl = window.location.origin;
+        const fullUrl = `${baseUrl}${redirectUrl}`;
+        
+        // Use replace to ensure we don't create a back button loop
+        window.location.replace(fullUrl);
+        // Add a fallback timeout in case redirect fails
+        setTimeout(() => {
+          if (window.location.pathname !== redirectUrl) {
+            console.error("Redirect failed, showing fallback");
+            sessionStorage.setItem("quizCompleted", "true");
+            setShowEmailCapture(false);
+          }
+        }, 3000);
+      } else {
+        // Log the issue for debugging
+        console.error("Unexpected response structure:", data);
+        alert("Unable to save your report. Please check the console for details.");
+        // Fallback to showing inline report
+        sessionStorage.setItem("quizCompleted", "true");
+        setShowEmailCapture(false);
+      }
     } catch (error) {
       console.error("Failed to save quiz data:", error);
+      alert(`Error saving quiz: ${error instanceof Error ? error.message : 'Unknown error'}. Check if the database is running.`);
+      // Fallback to showing inline report
+      sessionStorage.setItem("quizCompleted", "true");
+      setShowEmailCapture(false);
     }
+  };
+
+  const handleEmailSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setEmailError("");
+
+    // Basic email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      setEmailError("Please enter a valid email address");
+      return;
+    }
+
+    console.log("Submitting email:", email);
+    await saveQuizData(result.lifePath, result.birthDayNumber, result.expressionNumber, email);
+  };
+
+  const skipEmailCapture = async () => {
+    console.log("Skipping email capture");
+    await saveQuizData(result.lifePath, result.birthDayNumber, result.expressionNumber);
   };
 
   const generatePersonalizedInsights = (lifePath: number, data: QuizData) => {
@@ -385,15 +475,15 @@ export function NumerologyQuiz() {
     return insights;
   };
 
-  const generateRecommendations = (lifePath: number, dayNumber: number, data: QuizData) => {
+  const generateRecommendations = (lifePath: number, birthDayNumber: number, data: QuizData) => {
     const recommendations = [];
     
-    if ([7, 9].includes(dayNumber)) {
-      recommendations.push("Your day number suggests being selective in relationships - quality over quantity.");
+    if ([7, 9].includes(birthDayNumber)) {
+      recommendations.push("Your birth day number suggests being selective in relationships - quality over quantity.");
     }
     
-    if (dayNumber === 6) {
-      recommendations.push("Your day number 6 enhances your natural magnetism - use it wisely in relationships.");
+    if (birthDayNumber === 6) {
+      recommendations.push("Your birth day number 6 enhances your natural magnetism - use it wisely in relationships.");
     }
     
     if ([11, 22, 33].includes(lifePath)) {
@@ -432,65 +522,72 @@ export function NumerologyQuiz() {
     }
   };
 
-  if (result) {
+  // Don't render inline results anymore - wait for email capture or redirect
+  if (isLoading) {
     return (
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="max-w-4xl mx-auto"
-      >
-        <AnalysisReport
-          name={result.name}
-          birthDate={quizData.birthDate}
-          quizData={quizData}
-          lifePath={result.lifePath}
-          dayNumber={result.dayNumber}
-          expressionNumber={result.expressionNumber}
-        />
-        
-        <div className="mt-6 flex gap-4">
-          <Button 
-            onClick={() => window.location.href = "/auth/signin"} 
-            className="flex-1"
-            size="lg"
-          >
-            <Sparkles className="mr-2 h-4 w-4" />
-            Save Your Full Report
-          </Button>
-          <Button 
-            onClick={() => {
-              setResult(null);
-              setCurrentStep(0);
-              setQuizData({
-                firstName: "",
-                middleName: "",
-                lastName: "",
-                currentName: "",
-                birthDate: "",
-                birthTime: "",
-                birthPlace: "",
-                birthLatitude: undefined,
-                birthLongitude: undefined,
-                birthTimezone: undefined,
-                energySource: "",
-                decisionStyle: "",
-                lifeApproach: "",
-                stressResponse: "",
-                relationshipStyle: "",
-                careerMotivation: "",
-                spiritualBeliefs: "",
-                currentChallenge: "",
-                lifePhase: "",
-                primaryGoal: "",
-              });
-            }} 
-            variant="outline"
-            size="lg"
-          >
-            Start Over
-          </Button>
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600 mx-auto mb-4"></div>
+          <p className="text-muted-foreground">Loading...</p>
         </div>
-      </motion.div>
+      </div>
+    );
+  }
+
+  // If quiz is completed and we have a result, show a message
+  if (currentStep >= questions.length && result && !showEmailCapture) {
+    return (
+      <div className="max-w-2xl mx-auto">
+        <Card>
+          <CardContent className="pt-6">
+            <div className="text-center space-y-4">
+              <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-green-100 dark:bg-green-900/20">
+                <Check className="h-8 w-8 text-green-600" />
+              </div>
+              <h3 className="text-xl font-bold">Quiz Completed!</h3>
+              <p className="text-muted-foreground">
+                Your cosmic insights are being prepared...
+              </p>
+              <div className="pt-4">
+                <Button 
+                  onClick={() => {
+                    // Clear saved data and restart
+                    sessionStorage.removeItem('quizData');
+                    sessionStorage.removeItem('quizResult');
+                    setResult(null);
+                    setCurrentStep(0);
+                    setQuizData({
+                      firstName: "",
+                      middleName: "",
+                      lastName: "",
+                      currentName: "",
+                      birthDate: "",
+                      birthTime: "",
+                      birthPlace: "",
+                      birthLatitude: undefined,
+                      birthLongitude: undefined,
+                      birthTimezone: undefined,
+                      energySource: "",
+                      decisionStyle: "",
+                      lifeApproach: "",
+                      stressResponse: "",
+                      relationshipStyle: "",
+                      careerMotivation: "",
+                      spiritualBeliefs: "",
+                      currentChallenge: "",
+                      lifePhase: "",
+                      primaryGoal: "",
+                    });
+                  }}
+                  variant="outline"
+                >
+                  Take Quiz Again
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
     );
   }
 
@@ -675,6 +772,106 @@ export function NumerologyQuiz() {
             </CardContent>
           </Card>
         </motion.div>
+      </AnimatePresence>
+      
+      {/* Email Capture Modal - Shows BEFORE results */}
+      <AnimatePresence>
+        {showEmailCapture && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              transition={{ type: "spring", damping: 25, stiffness: 300 }}
+            >
+              <Card className="max-w-lg w-full">
+                <CardHeader className="text-center">
+                  <motion.div 
+                    className="mx-auto mb-4 w-20 h-20 rounded-full bg-gradient-to-br from-purple-100 to-pink-100 dark:from-purple-900 dark:to-pink-900 flex items-center justify-center"
+                    animate={{ scale: [1, 1.1, 1] }}
+                    transition={{ repeat: Infinity, duration: 2 }}
+                  >
+                    <Sparkles className="h-10 w-10 text-purple-600" />
+                  </motion.div>
+                  <CardTitle className="text-2xl">Your Report is Ready!</CardTitle>
+                  <CardDescription className="text-base">
+                    Life Path {result?.lifePath} - {result?.description}
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <form onSubmit={handleEmailSubmit} className="space-y-4">
+                    {/* Preview of what they'll get */}
+                    <div className="bg-gradient-to-r from-purple-50 to-pink-50 dark:from-purple-950/20 dark:to-pink-950/20 p-4 rounded-lg">
+                      <p className="font-semibold mb-2">Your Personalized Insights Include:</p>
+                      <ul className="space-y-2 text-sm">
+                        <li className="flex items-start gap-2">
+                          <Check className="h-4 w-4 text-green-600 mt-0.5" />
+                          <span>Complete Life Path {result?.lifePath} analysis</span>
+                        </li>
+                        <li className="flex items-start gap-2">
+                          <Check className="h-4 w-4 text-green-600 mt-0.5" />
+                          <span>Your Expression Number {result?.expressionNumber} meaning</span>
+                        </li>
+                        <li className="flex items-start gap-2">
+                          <Check className="h-4 w-4 text-green-600 mt-0.5" />
+                          <span>Personalized recommendations for {quizData.primaryGoal}</span>
+                        </li>
+                        <li className="flex items-start gap-2">
+                          <Check className="h-4 w-4 text-green-600 mt-0.5" />
+                          <span>Compatibility insights & timing forecasts</span>
+                        </li>
+                      </ul>
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <Label htmlFor="email">Enter your email to see your full report</Label>
+                      <Input
+                        id="email"
+                        type="email"
+                        placeholder="your@email.com"
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        className={emailError ? "border-red-500" : ""}
+                        autoFocus
+                      />
+                      {emailError && (
+                        <p className="text-sm text-red-500">{emailError}</p>
+                      )}
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <Button 
+                        type="submit" 
+                        className="w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700"
+                        size="lg"
+                      >
+                        <Mail className="h-4 w-4 mr-2" />
+                        Get My Free Report
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        className="w-full text-xs"
+                        onClick={skipEmailCapture}
+                      >
+                        Skip for now (you'll miss personalized updates)
+                      </Button>
+                    </div>
+                    
+                    <p className="text-xs text-center text-muted-foreground">
+                      🔒 Your privacy is protected. Unsubscribe anytime.
+                    </p>
+                  </form>
+                </CardContent>
+              </Card>
+            </motion.div>
+          </motion.div>
+        )}
       </AnimatePresence>
     </div>
   );
